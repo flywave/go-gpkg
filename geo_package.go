@@ -187,16 +187,21 @@ func (g *GeoPackage) GetExtent() (*general.Extent, error) {
 
 	rows, err := g.DB.DB().Query("SELECT min(min_x), max(max_x), min(min_y), max(max_y) FROM gpkg_contents;")
 	if err != nil {
-		return &extent, err
+		return nil, err
 	}
 
 	if rows.Next() {
-		if err := rows.Scan(&extent[0], &extent[1], &extent[2], &extent[3]); err != nil {
-			return &extent, err
+		var minx, miny, maxx, maxy *float64
+		if err := rows.Scan(&minx, &miny, &maxx, &maxy); err != nil {
+			return nil, err
+		}
+		if minx != nil && miny != nil && maxx != nil && maxy != nil {
+			extent = general.Extent{*minx, *miny, *maxx, *maxy}
+			return &extent, nil
 		}
 	}
 
-	return &extent, nil
+	return nil, errors.New("bounds not set!")
 }
 
 func (g *GeoPackage) GetCoverage() (geo.Coverage, error) {
@@ -683,6 +688,7 @@ func (g *GeoPackage) getTableColumns(table string) []column {
 
 	if err != nil {
 		log.Fatalf("err during closing rows: %v - %v", query, err)
+		return nil
 	}
 
 	for rows.Next() {
@@ -690,6 +696,7 @@ func (g *GeoPackage) getTableColumns(table string) []column {
 		err := rows.Scan(&column.cid, &column.name, &column.ctype, &column.notnull, &column.dfltValue, &column.pk)
 		if err != nil {
 			log.Fatalf("error getting the column information: %s", err)
+			return nil
 		}
 		columns = append(columns, column)
 	}
@@ -745,6 +752,35 @@ func (g *GeoPackage) UpdateGeometryExtent(tablename string, extent *general.Exte
 	}
 	_, err = g.DB.DB().Exec(updateSQL, ext.MinX(), ext.MinY(), ext.MaxX(), ext.MaxY(), tablename)
 	return err
+}
+
+func (g *GeoPackage) GetGeomColumn(tablename string) (string, error) {
+	selectGeomColSQL := `
+	SELECT 
+		column_name
+	FROM 
+		gpkg_geometry_columns
+	WHERE
+		table_name = ?
+	`
+	var columnName string
+
+	if err := g.DB.DB().QueryRow(selectGeomColSQL, tablename).Scan(&columnName); err != nil {
+		return "", err
+	}
+	return columnName, nil
+}
+
+func (g *GeoPackage) GetSrsid(tablename string) (int, error) {
+	selectGeomColSQL := `
+	SELECT 
+		srs_id
+	FROM 
+		gpkg_geometry_columns
+	WHERE
+		table_name = ?
+	`
+	return g.QueryInt(fmt.Sprintf(selectGeomColSQL, tablename))
 }
 
 func (g *GeoPackage) CalculateGeometryExtent(tablename string) (*general.Extent, error) {
@@ -815,7 +851,7 @@ func (g *GeoPackage) buildTable(t table) error {
 	return nil
 }
 
-func (g *GeoPackage) writeFeatures(datas []FeatureTable, t table, p int) {
+func (g *GeoPackage) writeFeatures(datas []FeatureTable, t table, p int) error {
 	var ext *general.Extent
 
 	var features [][]interface{}
@@ -854,7 +890,7 @@ func (g *GeoPackage) writeFeatures(datas []FeatureTable, t table, p int) {
 			features = nil
 		}
 	}
-	g.UpdateGeometryExtent(t.name, ext)
+	return g.UpdateGeometryExtent(t.name, ext)
 }
 
 func writeFeaturesArray(features [][]interface{}, g *GeoPackage, t table) {
@@ -896,4 +932,38 @@ func (g *GeoPackage) saveTileMatrixSet(tms *TileMatrixSet, ts []TileMatrix) erro
 	}
 
 	return nil
+}
+
+func (g *GeoPackage) StoreFeatureCollection(table_name string, fc *geom.FeatureCollection) error {
+	selectGeomColSQL := `
+	SELECT 
+		column_name,
+		geometry_type_name,
+		srs_id
+	FROM 
+		gpkg_geometry_columns
+	WHERE
+		table_name = ?
+	`
+	var gcolumn string
+	var gtype string
+	var srs int
+
+	if err := g.DB.DB().QueryRow(selectGeomColSQL, table_name).Scan(&gcolumn, &gtype, &srs); err != nil {
+		return err
+	}
+
+	var tab table
+	columns := g.getTableColumns(table_name)
+
+	if len(columns) != 0 {
+		tab = table{name: table_name, columns: columns, gcolumn: gcolumn, srs: srs, gtype: gtype}
+	} else {
+		tab = buildGeometryTable(table_name, fc, gcolumn, srs, gtype)
+		g.buildTable(tab)
+	}
+
+	ftables := NewFeatureTable(fc, &tab)
+
+	return g.writeFeatures(ftables, tab, 20)
 }

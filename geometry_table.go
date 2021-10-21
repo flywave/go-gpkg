@@ -3,6 +3,8 @@ package gpkg
 import (
 	"fmt"
 	"strings"
+
+	"github.com/flywave/go-geom"
 )
 
 type column struct {
@@ -64,4 +66,8 @@ func (t table) insertSQL() string {
 	vsql = append(vsql, `?`)
 	query := `INSERT INTO "` + t.name + `"(` + strings.Join(csql, `,`) + `) VALUES(` + strings.Join(vsql, `,`) + `)`
 	return query
+}
+
+func buildGeometryTable(table_name string, fc *geom.FeatureCollection, gcolumn string, srs int, gtype string) table {
+	return table{}
 }
