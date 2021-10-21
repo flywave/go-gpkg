@@ -722,7 +722,15 @@ func (g *GeoPackage) GetGeomColumn(tablename string) (string, error) {
 	return columnName, nil
 }
 
-func (g *GeoPackage) GetSrsid(tablename string) (int, error) {
+func (g *GeoPackage) GetGeomProj(tablename string) (geo.Proj, error) {
+	srsid, err := g.GetGeomSrsId(tablename)
+	if err != nil {
+		return nil, err
+	}
+	return geo.NewProj(srsid), nil
+}
+
+func (g *GeoPackage) GetGeomSrsId(tablename string) (int, error) {
 	selectGeomColSQL := `
 	SELECT 
 		srs_id
@@ -885,7 +893,6 @@ func (g *GeoPackage) saveTileMatrixSet(tms *TileMatrixSet, ts []TileMatrix) erro
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
