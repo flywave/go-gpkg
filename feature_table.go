@@ -25,13 +25,13 @@ func NewFeatureTable(fc *geom.FeatureCollection, tab *table) []FeatureTable {
 			if k == ID {
 				newv := changeColumnValue(f.ID, &c)
 				columns = append(columns, newv)
-			}
-
-			if v, ok := f.Properties[k]; ok {
-				newv := changeColumnValue(v, &c)
-				columns = append(columns, newv)
 			} else {
-				columns = append(columns, nil)
+				if v, ok := f.Properties[k]; ok {
+					newv := changeColumnValue(v, &c)
+					columns = append(columns, newv)
+				} else {
+					columns = append(columns, nil)
+				}
 			}
 		}
 

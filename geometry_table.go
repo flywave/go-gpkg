@@ -15,7 +15,7 @@ const (
 )
 
 func changeColumnValue(val interface{}, c *column) interface{} {
-	if strings.HasSuffix(strings.ToLower(c.ctype), "varchar") {
+	if strings.Contains(strings.ToLower(c.ctype), "varchar") {
 		switch v := val.(type) {
 		case string:
 			return v
@@ -31,6 +31,9 @@ func changeColumnValue(val interface{}, c *column) interface{} {
 			return strconv.Itoa(int(v))
 		case uint32:
 			return strconv.Itoa(int(v))
+		default:
+			data, _ := json.Marshal(val)
+			return string(data)
 		}
 	} else if strings.ToLower(c.ctype) == "integer" {
 		switch v := val.(type) {

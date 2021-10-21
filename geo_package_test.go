@@ -27,6 +27,12 @@ func TestWriteGPKGTile(t *testing.T) {
 		t.FailNow()
 	}
 
+	sets, err := gpkg.GetTileMatrixSets()
+
+	if err != nil || sets == nil {
+		t.FailNow()
+	}
+
 	gpkg.Close()
 	os.Remove("./test.gpkg")
 }

@@ -226,13 +226,6 @@ func (h *BinaryHeader) EncodeTo(data *bytes.Buffer) error {
 		return errors.New("buffer is nil")
 	}
 	var err error
-	hh := h
-	if hh == nil {
-		hh, err = NewBinaryHeaderByGeom(h.Endian(), 0, []float64{}, h.EnvelopeType(), false, true)
-		if err != nil {
-			return err
-		}
-	}
 	en := h.Endian()
 	data.Write([]byte{h.magic[0], h.magic[1], byte(h.version), byte(h.flags)})
 	err = binary.Write(data, en, h.srsid)

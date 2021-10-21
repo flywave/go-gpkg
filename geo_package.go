@@ -415,7 +415,7 @@ func (g *GeoPackage) Close() error {
 	return g.DB.Close()
 }
 
-func (g *GeoPackage) verifyTable(table_name string) bool {
+func (g *GeoPackage) TableExist(table_name string) bool {
 	table_type := ""
 
 	rows, err := g.DB.DB().Query("SELECT name FROM sqlite_master WHERE type='table' AND name= '" + table_name + "';")
@@ -430,55 +430,6 @@ func (g *GeoPackage) verifyTable(table_name string) bool {
 	}
 
 	return table_type != ""
-}
-
-func (g *GeoPackage) verifyGPKGContents(table_name string, type_ string, srsCode int) bool {
-	row := g.DB.DB().QueryRow("SELECT data_type, srs_id FROM gpkg_contents WHERE table_name = \"" + table_name + "\";")
-
-	if row.Err() != nil {
-		return false
-	}
-
-	var dataType string
-	var srs_id int
-
-	err := row.Scan(&dataType, &srs_id)
-	if err != nil {
-		return false
-	}
-
-	var coordsys_id int
-	cur := g.DB.DB().QueryRow("SELECT organization_coordsys_id FROM gpkg_spatial_ref_sys WHERE srs_id = ?;", srs_id)
-
-	err = cur.Scan(&coordsys_id)
-	if err != nil {
-		return false
-	}
-
-	if dataType != type_ {
-		return false
-	}
-
-	if coordsys_id != srsCode {
-		return false
-	}
-
-	return true
-}
-
-func (g *GeoPackage) verifyTileSize(table_name string, tileSize [2]int) bool {
-	tileHeight, err := g.GetTileHeight(table_name)
-	if err != nil {
-		return false
-	}
-	tileWidth, err := g.GetTileWidth(table_name)
-	if err != nil {
-		return false
-	}
-	if tileHeight != tileSize[1] || tileWidth != tileSize[0] {
-		return false
-	}
-	return true
 }
 
 func (g *GeoPackage) GetTileFormat(table_name string) (TileFormat, error) {
