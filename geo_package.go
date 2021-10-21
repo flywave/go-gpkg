@@ -321,7 +321,7 @@ func (g *GeoPackage) GetFeatureCollection(table_name string) (*geom.FeatureColle
 			return &geom.FeatureCollection{}, err
 		}
 		for i, col := range columns {
-			if col == "id" || col == "fid" {
+			if col == ID || col == FID {
 				switch values[i].(type) {
 				case []byte:
 					featureId = string(values[i].([]byte))
@@ -481,11 +481,11 @@ func (g *GeoPackage) verifyTileSize(table_name string, tileSize [2]int) bool {
 	return true
 }
 
-func (g *GeoPackage) GetTileFormat() (TileFormat, error) {
+func (g *GeoPackage) GetTileFormat(table_name string) (TileFormat, error) {
 	b := make([]byte, 0)
 
 	stmt := "SELECT tile_data FROM %s LIMIT 1;"
-	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt))
+	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table_name))
 	if err != nil {
 		return UNKNOWN, err
 	}
@@ -780,7 +780,13 @@ func (g *GeoPackage) GetSrsid(tablename string) (int, error) {
 	WHERE
 		table_name = ?
 	`
-	return g.QueryInt(fmt.Sprintf(selectGeomColSQL, tablename))
+
+	var srs_id int
+
+	if err := g.DB.DB().QueryRow(selectGeomColSQL, tablename).Scan(&srs_id); err != nil {
+		return -1, err
+	}
+	return srs_id, nil
 }
 
 func (g *GeoPackage) CalculateGeometryExtent(tablename string) (*general.Extent, error) {
@@ -960,7 +966,10 @@ func (g *GeoPackage) StoreFeatureCollection(table_name string, fc *geom.FeatureC
 		tab = table{name: table_name, columns: columns, gcolumn: gcolumn, srs: srs, gtype: gtype}
 	} else {
 		tab = buildGeometryTable(table_name, fc, gcolumn, srs, gtype)
-		g.buildTable(tab)
+		err := g.buildTable(tab)
+		if err != nil {
+			return err
+		}
 	}
 
 	ftables := NewFeatureTable(fc, &tab)

@@ -1,5 +1,9 @@
 package gpkg
 
+const (
+	DefaultGeometryColumn = "geometry"
+)
+
 type GeometryColumn struct {
 	GeometryColumnTableName  string `gorm:"column:table_name;unique;not null;primary_key"`
 	ColumnName               string `gorm:"column:column_name;not null"`

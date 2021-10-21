@@ -54,5 +54,5 @@ func detectTileFormat(data *[]byte) (TileFormat, error) {
 		}
 	}
 
-	return UNKNOWN, errors.New("Could not detect tile format")
+	return UNKNOWN, errors.New("could not detect tile format")
 }

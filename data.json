@@ -1,0 +1,85 @@
+{
+    "type": "FeatureCollection",
+    "query": "615 Gatling Place, Elliott, New Hampshire, 2232",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -37.854827,
+                    131.474698,
+                    0
+                ]
+            },
+            "properties": {
+                "address": "649 Adelphi Street, Cartwright, Kentucky, 7766",
+                "alt_addresses": [
+                    {
+                        "address": "442 Hazel Court, Muir, Maryland, 2324"
+                    },
+                    {
+                        "address": "326 Hale Avenue, Glendale, Pennsylvania, 6183"
+                    }
+                ],
+                "load_date": 5387026434227,
+                "county": "Kansas",
+                "census_block": 6.5,
+                "rural_underserved": true
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -69.178422,
+                    -31.863809,
+                    0
+                ]
+            },
+            "properties": {
+                "address": "161 Jaffray Street, Jamestown, Florida, 8935",
+                "alt_addresses": [
+                    {
+                        "address": "403 Troy Avenue, Goodville, New York, 9199"
+                    },
+                    {
+                        "address": "756 Lewis Place, Harleigh, Montana, 3651"
+                    }
+                ],
+                "load_date": 9162450593084,
+                "county": "Marshall Islands",
+                "census_block": 1.53,
+                "rural_underserved": false
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -17.478082,
+                    -149.475209,
+                    0
+                ]
+            },
+            "properties": {
+                "address": "512 Stuyvesant Avenue, Waukeenah, Hawaii, 3175",
+                "alt_addresses": [
+                    {
+                        "address": "576 Polhemus Place, Deseret, American Samoa, 3624"
+                    },
+                    {
+                        "address": "123 Hubbard Street, Sandston, Georgia, 7118"
+                    }
+                ],
+                "load_date": 4247199617073,
+                "county": "Ohio",
+                "census_block": 4.16,
+                "rural_underserved": true
+            }
+        }
+    ],
+    "status": "OK"
+}

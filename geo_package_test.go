@@ -1,6 +1,7 @@
 package gpkg
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -33,19 +34,25 @@ func TestWriteGPKGTile(t *testing.T) {
 func TestWriteGPKGGeom(t *testing.T) {
 	gpkg := Create("./test.gpkg")
 
-	columns := []column{
-		{name: "fid", ctype: "varchar(255)", notnull: 1, pk: 1},
-		{name: "state", ctype: "integer", notnull: 0, pk: 0},
-		{name: "desc", ctype: "text", notnull: 0, pk: 0},
-	}
+	f, _ := os.Open("./data.json")
 
-	tt := table{name: "test", columns: columns, gcolumn: "geom", gtype: "Point", srs: 4326}
+	data, _ := ioutil.ReadAll(f)
+
+	fcs, _ := general.UnmarshalFeatureCollection(data)
+
+	tt := buildGeometryTable("test", fcs, "geom", 4326, "Point")
 
 	gpkg.buildTable(tt)
 
-	ft := FeatureTable{geometry: general.NewPoint([]float64{180, 180}), columns: []interface{}{"1001", 2, ""}}
+	ft := NewFeatureTable(fcs, &tt)
 
-	gpkg.writeFeatures([]FeatureTable{ft}, tt, 1)
+	gpkg.writeFeatures(ft, tt, 1)
+
+	newfc, _ := gpkg.GetFeatureCollection("test")
+
+	if newfc == nil {
+		t.FailNow()
+	}
 
 	gpkg.Close()
 	os.Remove("./test.gpkg")
