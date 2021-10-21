@@ -182,8 +182,8 @@ func (g *GeoPackage) GetTileHeight(table string) (int, error) {
 	return g.QueryInt(fmt.Sprintf(stmt, table))
 }
 
-func (g *GeoPackage) GetExtent() (*Extent, error) {
-	extent := Extent{}
+func (g *GeoPackage) GetExtent() (*general.Extent, error) {
+	extent := general.Extent{}
 
 	rows, err := g.DB.DB().Query("SELECT min(min_x), max(max_x), min(min_y), max(max_y) FROM gpkg_contents;")
 	if err != nil {
@@ -191,7 +191,7 @@ func (g *GeoPackage) GetExtent() (*Extent, error) {
 	}
 
 	if rows.Next() {
-		if err := rows.Scan(&extent.MinX, &extent.MaxX, &extent.MinY, &extent.MaxY); err != nil {
+		if err := rows.Scan(&extent[0], &extent[1], &extent[2], &extent[3]); err != nil {
 			return &extent, err
 		}
 	}
@@ -216,7 +216,7 @@ func (g *GeoPackage) GetCoverage() (geo.Coverage, error) {
 		}
 	}
 
-	return geo.NewBBoxCoverage(vec2d.Rect{Min: vec2d.T{ext.MinX, ext.MinY}, Max: vec2d.T{ext.MaxX, ext.MaxY}}, geo.NewProj(srscode), false), nil
+	return geo.NewBBoxCoverage(vec2d.Rect{Min: vec2d.T{ext[0], ext[1]}, Max: vec2d.T{ext[2], ext[3]}}, geo.NewProj(srscode), false), nil
 }
 
 func (g *GeoPackage) GetGeometryType(table_name string, column_name string) (string, error) {
