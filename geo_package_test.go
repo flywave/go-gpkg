@@ -54,6 +54,12 @@ func TestWriteGPKGGeom(t *testing.T) {
 		t.FailNow()
 	}
 
+	ext, _ := gpkg.GetExtent()
+
+	if ext == nil {
+		t.FailNow()
+	}
+
 	gpkg.Close()
 	os.Remove("./test.gpkg")
 }
