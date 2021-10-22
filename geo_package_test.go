@@ -14,6 +14,7 @@ func TestWriteGPKGTile(t *testing.T) {
 
 	conf := geo.DefaultTileGridOptions()
 	conf[geo.TILEGRID_SRS] = geo.NewProj("EPSG:900913")
+	conf[geo.TILEGRID_ORIGIN] = geo.ORIGIN_UL
 
 	grid := geo.NewTileGrid(conf)
 
@@ -21,7 +22,7 @@ func TestWriteGPKGTile(t *testing.T) {
 
 	gpkg.StoreTile("test", 0, 0, 0, []byte("test"))
 
-	cov, err := gpkg.GetCoverage()
+	cov, err := gpkg.GetCoverage("test")
 
 	if err != nil || cov == nil {
 		t.FailNow()
@@ -30,6 +31,12 @@ func TestWriteGPKGTile(t *testing.T) {
 	sets, err := gpkg.GetTileMatrixSets()
 
 	if err != nil || sets == nil {
+		t.FailNow()
+	}
+
+	grid2, err := gpkg.GetTileGrid("test")
+
+	if err != nil || grid2 == nil {
 		t.FailNow()
 	}
 
@@ -60,7 +67,7 @@ func TestWriteGPKGGeom(t *testing.T) {
 		t.FailNow()
 	}
 
-	ext, _ := gpkg.GetExtent()
+	ext, _ := gpkg.GetExtent("test")
 
 	if ext == nil {
 		t.FailNow()

@@ -182,35 +182,52 @@ func (g *GeoPackage) GetTileHeight(table string) (int, error) {
 	return g.QueryInt(fmt.Sprintf(stmt, table))
 }
 
-func (g *GeoPackage) GetExtent() (*general.Extent, error) {
-	extent := general.Extent{}
-
-	rows, err := g.DB.DB().Query("SELECT min(min_x), max(max_x), min(min_y), max(max_y) FROM gpkg_contents;")
+func (g *GeoPackage) GetTileSize(table string) (*[2]int, error) {
+	stmt := "SELECT tile_width, tile_height FROM gpkg_tile_matrix WHERE table_name = \"%s\" ORDER BY zoom_level LIMIT 1;"
+	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table))
 	if err != nil {
 		return nil, err
 	}
 
 	if rows.Next() {
-		var minx, miny, maxx, maxy *float64
-		if err := rows.Scan(&minx, &miny, &maxx, &maxy); err != nil {
+		var width, height int
+		if err := rows.Scan(&width, &height); err != nil {
 			return nil, err
 		}
-		if minx != nil && miny != nil && maxx != nil && maxy != nil {
-			extent = general.Extent{*minx, *miny, *maxx, *maxy}
-			return &extent, nil
-		}
+		size := [2]int{width, height}
+		return &size, nil
 	}
 
 	return nil, errors.New("bounds not set!")
 }
 
-func (g *GeoPackage) GetCoverage() (geo.Coverage, error) {
-	ext, err := g.GetExtent()
+func (g *GeoPackage) GetExtent(table_name string) (*general.Extent, error) {
+	extent := general.Extent{}
+
+	rows, err := g.DB.DB().Query(fmt.Sprintf("SELECT min(min_x), max(max_x), min(min_y), max(max_y) FROM gpkg_contents WHERE table_name = \"%s\";", table_name))
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := g.DB.DB().Query("SELECT srs_id FROM gpkg_contents LIMIT 1;")
+	if rows.Next() {
+		var minx, miny, maxx, maxy float64
+		if err := rows.Scan(&minx, &miny, &maxx, &maxy); err != nil {
+			return nil, err
+		}
+		extent = general.Extent{minx, miny, maxx, maxy}
+		return &extent, nil
+	}
+
+	return nil, errors.New("bounds not set!")
+}
+
+func (g *GeoPackage) GetCoverage(table_name string) (geo.Coverage, error) {
+	ext, err := g.GetExtent(table_name)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := g.DB.DB().Query(fmt.Sprintf("SELECT srs_id FROM gpkg_contents WHERE table_name = \"%s\";", table_name))
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +287,7 @@ func (g *GeoPackage) StoreTile(table string, z int, x int, y int, data []byte) e
 	return nil
 }
 
-func (g *GeoPackage) GetMaxZoom(table string) (int, error) {
+func (g *GeoPackage) GetTileMaxZoom(table string) (int, error) {
 	stmt := "SELECT max(zoom_level) FROM gpkg_tile_matrix WHERE table_name = \"%s\";"
 	return g.QueryInt(fmt.Sprintf(stmt, table))
 }
@@ -280,27 +297,68 @@ func (g *GeoPackage) GetTileSrsId(table string) (int, error) {
 	return g.QueryInt(fmt.Sprintf(stmt, table))
 }
 
-func (g *GeoPackage) GetZoomLevelsAndResolutions(table string) ([]int, []float64, error) {
-	stmt := "SELECT zoom_level, pixel_x_size FROM gpkg_tile_matrix WHERE table_name = \"%s\";"
+func (g *GeoPackage) GetTileZoomLevels(table string) ([]int, error) {
+	stmt := "SELECT zoom_level FROM gpkg_tile_matrix WHERE table_name = \"%s\";"
 	levels := make([]int, 0)
-	resolutions := make([]float64, 0)
 
 	rows, err := g.DB.DB().Query(stmt, table)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	for rows.Next() {
 		level := 0
-		res := float64(0)
-		if err := rows.Scan(&level, &res); err != nil {
-			return nil, nil, err
+		if err := rows.Scan(&level); err != nil {
+			return nil, err
 		}
 		levels = append(levels, level)
+	}
+
+	return levels, nil
+}
+
+func (g *GeoPackage) GetTileResolutions(table string) ([]float64, error) {
+	stmt := "SELECT pixel_x_size FROM gpkg_tile_matrix WHERE table_name = \"%s\";"
+	resolutions := make([]float64, 0)
+
+	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table))
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		res := float64(0)
+		if err := rows.Scan(&res); err != nil {
+			return nil, err
+		}
 		resolutions = append(resolutions, res)
 	}
 
-	return levels, resolutions, nil
+	return resolutions, nil
+}
+
+func (g *GeoPackage) GetTileGrid(table string) (*geo.TileGrid, error) {
+	res, err := g.GetTileResolutions(table)
+	if err != nil {
+		return nil, err
+	}
+	tileSize, err := g.GetTileSize(table)
+	if err != nil {
+		return nil, err
+	}
+	srsid, err := g.GetTileSrsId(table)
+	if err != nil {
+		return nil, err
+	}
+
+	conf := geo.DefaultTileGridOptions()
+
+	conf[geo.TILEGRID_SRS] = geo.NewProj(srsid)
+	conf[geo.TILEGRID_RES] = res
+	conf[geo.TILEGRID_TILE_SIZE] = []uint32{uint32(tileSize[0]), uint32(tileSize[1])}
+	conf[geo.TILEGRID_ORIGIN] = geo.ORIGIN_UL
+
+	return geo.NewTileGrid(conf), nil
 }
 
 func (g *GeoPackage) GetFeatureCollection(table_name string) (*geom.FeatureCollection, error) {
@@ -485,6 +543,10 @@ func (g *GeoPackage) AddTilesTable(table_name string, grid *geo.TileGrid, cov ge
 		 UNIQUE (zoom_level, tile_column, tile_row))
 		 `
 	)
+	if grid.Origin != geo.ORIGIN_UL {
+		return fmt.Errorf("only support origin ul")
+	}
+
 	var count int
 
 	srs_id := geo.GetEpsgNum(grid.Srs.GetSrsCode())
@@ -727,15 +789,15 @@ func (g *GeoPackage) GetGeomColumn(tablename string) (string, error) {
 	return columnName, nil
 }
 
-func (g *GeoPackage) GetGeomProj(tablename string) (geo.Proj, error) {
-	srsid, err := g.GetGeomSrsId(tablename)
+func (g *GeoPackage) GetGeometryProj(tablename string) (geo.Proj, error) {
+	srsid, err := g.GetGeometrySrsId(tablename)
 	if err != nil {
 		return nil, err
 	}
 	return geo.NewProj(srsid), nil
 }
 
-func (g *GeoPackage) GetGeomSrsId(tablename string) (int, error) {
+func (g *GeoPackage) GetGeometrySrsId(tablename string) (int, error) {
 	selectGeomColSQL := `
 	SELECT 
 		srs_id
