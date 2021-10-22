@@ -275,6 +275,11 @@ func (g *GeoPackage) GetMaxZoom(table string) (int, error) {
 	return g.QueryInt(fmt.Sprintf(stmt, table))
 }
 
+func (g *GeoPackage) GetTileSrsId(table string) (int, error) {
+	stmt := "SELECT srs_id FROM gpkg_contents WHERE table_name = \"%s\";"
+	return g.QueryInt(fmt.Sprintf(stmt, table))
+}
+
 func (g *GeoPackage) GetZoomLevelsAndResolutions(table string) ([]int, []float64, error) {
 	stmt := "SELECT zoom_level, pixel_x_size FROM gpkg_tile_matrix WHERE table_name = \"%s\";"
 	levels := make([]int, 0)
