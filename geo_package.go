@@ -361,6 +361,80 @@ func (g *GeoPackage) GetTileGrid(table string) (*geo.TileGrid, error) {
 	return geo.NewTileGrid(conf), nil
 }
 
+type GeoPackageReader struct {
+	rows      *sql.Rows
+	columns   []string
+	values    []interface{}
+	valuePtrs []interface{}
+}
+
+func newGeoPackageReader(rows *sql.Rows) *GeoPackageReader {
+	columns, _ := rows.Columns()
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	return &GeoPackageReader{rows: rows, columns: columns, values: values, valuePtrs: valuePtrs}
+}
+
+func (r *GeoPackageReader) Next() bool {
+	return r.rows.Next()
+}
+
+func (r *GeoPackageReader) Read() *geom.Feature {
+	if r.rows == nil {
+		return nil
+	}
+	var featureId interface{}
+	featureProperties := map[string]interface{}{}
+	var featureGeometry *geom.GeometryData
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return &geom.FeatureCollection{}, err
+	}
+	for i, col := range columns {
+		if col == ID || col == FID {
+			switch values[i].(type) {
+			case []byte:
+				featureId = string(values[i].([]byte))
+			default:
+				featureId = values[i]
+			}
+		} else {
+			switch values[i].(type) {
+			case []byte:
+				geometryType, err := g.GetGeometryType(table_name, col)
+				if err != nil {
+					return &geom.FeatureCollection{}, err
+				}
+				if len(geometryType) > 0 {
+					v := values[i].([]byte)
+					g, err := DecodeGeometry(v)
+					if err != nil {
+						return &geom.FeatureCollection{}, err
+					}
+
+					featureGeometry = g.Geometry
+				} else {
+					featureProperties[col] = string(values[i].([]byte))
+				}
+			default:
+				featureProperties[col] = values[i]
+			}
+		}
+	}
+	return &geom.Feature{ID: featureId, Properties: featureProperties, GeometryData: *featureGeometry}
+}
+
+func (g *GeoPackage) GetFeatureReader(table_name string) (*GeoPackageReader, error) {
+	stmt := "SELECT * FROM %s;"
+	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table_name))
+	if err != nil {
+		return nil, err
+	}
+	return newGeoPackageReader(rows), nil
+}
+
 func (g *GeoPackage) GetFeatureCollection(table_name string) (*geom.FeatureCollection, error) {
 	stmt := "SELECT * FROM %s;"
 	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table_name))
