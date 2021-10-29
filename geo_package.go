@@ -362,68 +362,70 @@ func (g *GeoPackage) GetTileGrid(table string) (*geo.TileGrid, error) {
 }
 
 type GeoPackageReader struct {
-	rows      *sql.Rows
-	columns   []string
-	values    []interface{}
-	valuePtrs []interface{}
+	rows       *sql.Rows
+	table_name string
+	g          *GeoPackage
+	columns    []string
+	values     []interface{}
+	valuePtrs  []interface{}
 }
 
-func newGeoPackageReader(rows *sql.Rows) *GeoPackageReader {
+func newGeoPackageReader(rows *sql.Rows, table_name string, g *GeoPackage) *GeoPackageReader {
 	columns, _ := rows.Columns()
 	values := make([]interface{}, len(columns))
 	valuePtrs := make([]interface{}, len(columns))
-	return &GeoPackageReader{rows: rows, columns: columns, values: values, valuePtrs: valuePtrs}
+	return &GeoPackageReader{rows: rows, table_name: table_name, columns: columns, values: values, valuePtrs: valuePtrs, g: g}
 }
 
 func (r *GeoPackageReader) Next() bool {
 	return r.rows.Next()
 }
 
-func (r *GeoPackageReader) Read() *geom.Feature {
+func (r *GeoPackageReader) Read() (*geom.Feature, error) {
 	if r.rows == nil {
-		return nil
+		return nil, errors.New("db not open")
 	}
 	var featureId interface{}
 	featureProperties := map[string]interface{}{}
 	var featureGeometry *geom.GeometryData
-	for i := range columns {
-		valuePtrs[i] = &values[i]
+	for i := range r.columns {
+		r.valuePtrs[i] = &r.values[i]
 	}
-	if err := rows.Scan(valuePtrs...); err != nil {
-		return &geom.FeatureCollection{}, err
+	if err := r.rows.Scan(r.valuePtrs...); err != nil {
+		return nil, err
 	}
-	for i, col := range columns {
+	for i, col := range r.columns {
 		if col == ID || col == FID {
-			switch values[i].(type) {
+			switch r.values[i].(type) {
 			case []byte:
-				featureId = string(values[i].([]byte))
+				featureId = string(r.values[i].([]byte))
 			default:
-				featureId = values[i]
+				featureId = r.values[i]
 			}
 		} else {
-			switch values[i].(type) {
+			switch r.values[i].(type) {
 			case []byte:
-				geometryType, err := g.GetGeometryType(table_name, col)
+				geometryType, err := r.g.GetGeometryType(r.table_name, col)
 				if err != nil {
-					return &geom.FeatureCollection{}, err
+					return nil, err
 				}
 				if len(geometryType) > 0 {
-					v := values[i].([]byte)
+					v := r.values[i].([]byte)
 					g, err := DecodeGeometry(v)
 					if err != nil {
-						return &geom.FeatureCollection{}, err
+						return nil, err
 					}
 
 					featureGeometry = g.Geometry
 				} else {
-					featureProperties[col] = string(values[i].([]byte))
+					featureProperties[col] = string(r.values[i].([]byte))
 				}
 			default:
-				featureProperties[col] = values[i]
+				featureProperties[col] = r.values[i]
 			}
 		}
 	}
-	return &geom.Feature{ID: featureId, Properties: featureProperties, GeometryData: *featureGeometry}
+	return &geom.Feature{ID: featureId, Properties: featureProperties, GeometryData: *featureGeometry}, nil
 }
 
 func (g *GeoPackage) GetFeatureReader(table_name string) (*GeoPackageReader, error) {
@@ -432,7 +434,7 @@ func (g *GeoPackage) GetFeatureReader(table_name string) (*GeoPackageReader, err
 	if err != nil {
 		return nil, err
 	}
-	return newGeoPackageReader(rows), nil
+	return newGeoPackageReader(rows, table_name, g), nil
 }
 
 func (g *GeoPackage) GetFeatureCollection(table_name string) (*geom.FeatureCollection, error) {
