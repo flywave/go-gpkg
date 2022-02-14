@@ -31,6 +31,6 @@ func (Content) TableName() string {
 
 func NewContent(tableName string, dataType string, grid *geo.TileGrid) *Content {
 	bbox := grid.BBox
-	srsId := geo.GetEpsgNum(grid.Srs.SrsCode)
+	srsId := geo.GetEpsgNum(grid.Srs.GetSrsCode())
 	return &Content{ContentTableName: tableName, Identifier: tableName, DataType: dataType, Description: "", MinX: bbox.Min[0], MinY: bbox.Min[1], MaxX: bbox.Max[0], MaxY: bbox.Max[1], SpatialReferenceSystemId: srsId}
 }

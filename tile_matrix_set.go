@@ -24,6 +24,6 @@ func (tms TileMatrixSet) GetSpatialReferenceSystemId() int {
 
 func NewTileMatrixSet(tableName string, grid *geo.TileGrid) *TileMatrixSet {
 	bbox := grid.BBox
-	srsId := geo.GetEpsgNum(grid.Srs.SrsCode)
+	srsId := geo.GetEpsgNum(grid.Srs.GetSrsCode())
 	return &TileMatrixSet{Name: tableName, MinX: &bbox.Min[0], MinY: &bbox.Min[1], MaxX: &bbox.Max[0], MaxY: &bbox.Max[1], SpatialReferenceSystemId: &srsId}
 }
