@@ -261,7 +261,7 @@ func (g *GeoPackage) GetGeometryType(table_name string, column_name string) (str
 func (g *GeoPackage) GetTile(table string, z int, x int, y int) ([]byte, error) {
 	b := make([]byte, 0)
 
-	stmt := "SELECT tile_data FROM %s WHERE zoom_level = %d and tile_column = %d and tile_row = %d LIMIT 1;"
+	stmt := "SELECT tile_data FROM \"%s\" WHERE zoom_level = %d and tile_column = %d and tile_row = %d LIMIT 1;"
 	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table, z, x, y))
 	if err != nil {
 		return b, err
@@ -277,7 +277,7 @@ func (g *GeoPackage) GetTile(table string, z int, x int, y int) ([]byte, error) 
 }
 
 func (g *GeoPackage) StoreTile(table string, z int, x int, y int, data []byte) error {
-	stmt := fmt.Sprintf("INSERT OR REPLACE INTO [%s] (zoom_level, tile_column, tile_row, tile_data) VALUES (?,?,?,?)", table)
+	stmt := fmt.Sprintf("INSERT OR REPLACE INTO [\"%s\"] (zoom_level, tile_column, tile_row, tile_data) VALUES (?,?,?,?)", table)
 
 	_, err := g.DB.DB().Exec(stmt, z, x, y, data)
 	if err != nil {
@@ -574,7 +574,7 @@ func (g *GeoPackage) TableExist(table_name string) bool {
 func (g *GeoPackage) GetTileFormat(table_name string) (TileFormat, error) {
 	b := make([]byte, 0)
 
-	stmt := "SELECT tile_data FROM %s LIMIT 1;"
+	stmt := "SELECT tile_data FROM \"%s\" LIMIT 1;"
 	rows, err := g.DB.DB().Query(fmt.Sprintf(stmt, table_name))
 	if err != nil {
 		return UNKNOWN, err
